@@ -1,0 +1,74 @@
+-- ============================================================
+-- BRONZE LAYER: External Table Registration
+-- Purpose: Register raw JSON files in S3 as a queryable table
+-- Type: External Table (data stays in S3 as JSON)
+-- Run: Once manually in Athena, then DAG uses MSCK REPAIR
+--      to auto-discover new partitions
+-- ============================================================
+
+CREATE DATABASE IF NOT EXISTS weather_lakehouse;
+
+CREATE EXTERNAL TABLE IF NOT EXISTS weather_lakehouse.bronze_weather_raw (
+    latitude                DOUBLE,
+    longitude               DOUBLE,
+    generationtime_ms       DOUBLE,
+    utc_offset_seconds      INT,
+    timezone                STRING,
+    timezone_abbreviation   STRING,
+    elevation               DOUBLE,
+
+    hourly_units STRUCT
+        time:                   STRING,
+        temperature_2m:         STRING,
+        relative_humidity_2m:   STRING,
+        apparent_temperature:   STRING,
+        precipitation:          STRING,
+        rain:                   STRING,
+        wind_speed_10m:         STRING,
+        wind_direction_10m:     STRING,
+        weather_code:           STRING,
+        uv_index:               STRING
+    >,
+
+    hourly STRUCT
+        time:                   ARRAY<STRING>,
+        temperature_2m:         ARRAY<DOUBLE>,
+        relative_humidity_2m:   ARRAY<INT>,
+        apparent_temperature:   ARRAY<DOUBLE>,
+        precipitation:          ARRAY<DOUBLE>,
+        rain:                   ARRAY<DOUBLE>,
+        wind_speed_10m:         ARRAY<DOUBLE>,
+        wind_direction_10m:     ARRAY<INT>,
+        weather_code:           ARRAY<INT>,
+        uv_index:               ARRAY<DOUBLE>
+    >,
+
+    -- Pipeline metadata added by DAG before uploading
+    ingestion_timestamp     STRING,
+    pipeline_run_date       STRING,
+    city_name               STRING,
+    city_display_name       STRING,
+    country                 STRING
+)
+-- Partition by city and date — prevents full bucket scan
+PARTITIONED BY (
+    city        STRING,
+    year        STRING,
+    month       STRING,
+    day         STRING
+)
+ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
+WITH SERDEPROPERTIES (
+    'ignore.malformed.json' = 'true'
+)
+STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'
+OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION 's3://weather-lakehouse-monish/bronze/'
+TBLPROPERTIES (
+    'has_encrypted_data' = 'false',
+    'skip.header.line.count' = '0'
+);
+
+-- Auto-discover all existing partitions after table creation
+-- Run this every time new partitions are added
+MSCK REPAIR TABLE weather_lakehouse.bronze_weather_raw;
