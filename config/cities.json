@@ -1,0 +1,66 @@
+{
+  "cities": [
+    {
+      "name": "mumbai",
+      "display_name": "Mumbai",
+      "latitude": 19.0760,
+      "longitude": 72.8777,
+      "timezone": "Asia/Kolkata",
+      "country": "India"
+    },
+    {
+      "name": "delhi",
+      "display_name": "Delhi",
+      "latitude": 28.6139,
+      "longitude": 77.2090,
+      "timezone": "Asia/Kolkata",
+      "country": "India"
+    },
+    {
+      "name": "bangalore",
+      "display_name": "Bangalore",
+      "latitude": 12.9716,
+      "longitude": 77.5946,
+      "timezone": "Asia/Kolkata",
+      "country": "India"
+    },
+    {
+      "name": "london",
+      "display_name": "London",
+      "latitude": 51.5074,
+      "longitude": -0.1278,
+      "timezone": "Europe/London",
+      "country": "UK"
+    },
+    {
+      "name": "new_york",
+      "display_name": "New York",
+      "latitude": 40.7128,
+      "longitude": -74.0060,
+      "timezone": "America/New_York",
+      "country": "USA"
+    },
+    {
+      "name": "tokyo",
+      "display_name": "Tokyo",
+      "latitude": 35.6762,
+      "longitude": 139.6503,
+      "timezone": "Asia/Tokyo",
+      "country": "Japan"
+    }
+  ],
+  "api_settings": {
+    "hourly_variables": [
+      "temperature_2m",
+      "relative_humidity_2m",
+      "apparent_temperature",
+      "precipitation",
+      "rain",
+      "wind_speed_10m",
+      "wind_direction_10m",
+      "weather_code",
+      "uv_index"
+    ],
+    "backfill_days": 90
+  }
+}
