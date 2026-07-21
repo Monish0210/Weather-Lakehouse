@@ -14,7 +14,7 @@ import os
 from datetime import datetime, timedelta
 
 import requests
-from airflow.decorators import dag, task
+from airflow.sdk import dag, task
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
@@ -56,14 +56,16 @@ def run_athena_query(sql: str) -> str:
     """
     athena_hook = AthenaHook(
         aws_conn_id="aws_default",
-        sleep_time=5,
     )
     query_id = athena_hook.run_query(
         query=sql,
         query_context={"Database": GLUE_DATABASE},
         result_configuration={"OutputLocation": ATHENA_RESULTS},
     )
-    athena_hook.poll_query_status(query_id)
+    athena_hook.poll_query_status(
+        query_id,
+        sleep_time=5,
+    )
     return query_id
 
 
