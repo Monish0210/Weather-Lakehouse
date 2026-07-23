@@ -283,14 +283,26 @@ def weather_backfill_pipeline():
     @task(task_id="register_bronze_external_table")
     def register_bronze_external_table() -> None:
         """
-        Run create_bronze_table.sql in Athena.
-        Registers S3 JSON files as a queryable external table
-        in Glue Data Catalog.
-        Uses IF NOT EXISTS — safe to rerun.
+        Register Bronze S3 JSON files as Athena external table.
+        Three separate Athena calls — Athena only allows
+        one SQL statement per execution.
         """
-        sql = read_sql_file("ddl/create_bronze_table.sql")
-        run_athena_query(sql)
-        logger.info("✅ Bronze external table registered in Athena")
+        # Call 1: Create database
+        run_athena_query(
+            "CREATE DATABASE IF NOT EXISTS weather_lakehouse;"
+        )
+        logger.info("✅ Database weather_lakehouse ready")
+
+        # Call 2: Create external table
+        create_table_sql = read_sql_file("ddl/create_bronze_table.sql")
+        run_athena_query(create_table_sql)
+        logger.info("✅ Bronze external table registered")
+
+        # Call 3: Discover all S3 partitions
+        run_athena_query(
+            "MSCK REPAIR TABLE weather_lakehouse.bronze_weather_raw;"
+        )
+        logger.info("✅ Bronze partitions discovered")
 
 
     # ──────────────────────────────────────────────────────────
@@ -314,16 +326,15 @@ def weather_backfill_pipeline():
     # ──────────────────────────────────────────────────────────
     @task(task_id="create_gold_iceberg_tables")
     def create_gold_iceberg_tables() -> None:
-        """
-        Run create_gold_tables.sql in Athena.
-        Creates two empty Iceberg tables in S3 Tables:
-        - gold_daily_weather_summary
-        - gold_extreme_weather_events
-        Uses IF NOT EXISTS — safe to rerun.
-        """
-        sql = read_sql_file("ddl/create_gold_tables.sql")
-        run_athena_query(sql)
-        logger.info("✅ Gold Iceberg tables created in S3 Tables")
+        run_athena_query(
+            read_sql_file("ddl/create_gold_daily_summary.sql")
+        )
+        logger.info("✅ Gold daily summary table created")
+
+        run_athena_query(
+            read_sql_file("ddl/create_gold_extreme_events.sql")
+        )
+        logger.info("✅ Gold extreme events table created")
 
 
     # ──────────────────────────────────────────────────────────

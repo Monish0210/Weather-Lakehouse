@@ -6,8 +6,6 @@
 --      to auto-discover new partitions
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS weather_lakehouse;
-
 CREATE EXTERNAL TABLE IF NOT EXISTS weather_lakehouse.bronze_weather_raw (
     latitude                DOUBLE,
     longitude               DOUBLE,
@@ -68,7 +66,3 @@ TBLPROPERTIES (
     'has_encrypted_data' = 'false',
     'skip.header.line.count' = '0'
 );
-
--- Auto-discover all existing partitions after table creation
--- Run this every time new partitions are added
-MSCK REPAIR TABLE weather_lakehouse.bronze_weather_raw;
