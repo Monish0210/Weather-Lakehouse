@@ -61,6 +61,6 @@
       "weather_code",
       "uv_index"
     ],
-    "backfill_days": 90
+    "backfill_days": 7
   }
 }
