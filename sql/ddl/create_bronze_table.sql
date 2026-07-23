@@ -1,12 +1,4 @@
--- ============================================================
--- BRONZE LAYER: External Table Registration
--- Purpose: Register raw JSON files in S3 as a queryable table
--- Type: External Table (data stays in S3 as JSON)
--- Run: Once manually in Athena, then DAG uses MSCK REPAIR
---      to auto-discover new partitions
--- ============================================================
-
-CREATE EXTERNAL TABLE IF NOT EXISTS weather_lakehouse.bronze_weather_raw (
+CREATE TABLE IF NOT EXISTS weather_lakehouse.bronze_weather_raw (
     latitude                DOUBLE,
     longitude               DOUBLE,
     generationtime_ms       DOUBLE,
@@ -41,14 +33,12 @@ CREATE EXTERNAL TABLE IF NOT EXISTS weather_lakehouse.bronze_weather_raw (
         uv_index:               ARRAY<DOUBLE>
     >,
 
-    -- Pipeline metadata added by DAG before uploading
     ingestion_timestamp     STRING,
     pipeline_run_date       STRING,
     city_name               STRING,
     city_display_name       STRING,
     country                 STRING
 )
--- Partition by city and date — prevents full bucket scan
 PARTITIONED BY (
     city        STRING,
     year        STRING,
@@ -65,4 +55,4 @@ LOCATION 's3://weather-lakehouse-monish/bronze/'
 TBLPROPERTIES (
     'has_encrypted_data' = 'false',
     'skip.header.line.count' = '0'
-);
+)
