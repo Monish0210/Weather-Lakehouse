@@ -339,33 +339,24 @@ def weather_incremental_pipeline():
     # TASK 4: Bronze → Silver CTAS
     # ──────────────────────────────────────────────────────────
     @task(
-        task_id="run_bronze_to_silver_ctas",
-        execution_timeout=timedelta(minutes=30),
+    task_id="run_bronze_to_silver_ctas",
+    execution_timeout=timedelta(minutes=30),
     )
     def run_bronze_to_silver_ctas(run_metadata: dict) -> dict:
-        """
-        Run Bronze to Silver CTAS for each city for run_date.
+        config       = load_cities_config()
+        cities       = config["cities"]
+        run_date     = run_metadata["run_date"]
+        year         = run_metadata["year"]
+        month        = run_metadata["month"]
+        day          = run_metadata["day"]
 
-        Reads Bronze JSON → flattens 24 hourly arrays
-        into 24 rows → decodes weather codes → validates
-        data quality → writes Parquet to Silver Iceberg.
-
-        6 cities × 1 day = 6 Athena CTAS queries.
-        Each query produces 24 rows in Silver.
-        Total: 144 new Silver rows per daily run.
-        """
-        config          = load_cities_config()
-        cities          = config["cities"]
-        sql_template    = read_sql_file(
+        # Read full SQL template
+        sql_template = read_sql_file(
             "transformations/bronze_to_silver_ctas.sql"
         )
 
-        run_date    = run_metadata["run_date"]
-        year        = run_metadata["year"]
-        month       = run_metadata["month"]
-        day         = run_metadata["day"]
-
         for city in cities:
+            # Substitute placeholders
             sql = (
                 sql_template
                 .replace("{{ run_date }}",  run_date)
@@ -375,16 +366,20 @@ def weather_incremental_pipeline():
                 .replace("{{ day }}",       day)
             )
 
-            run_athena_query(sql)
+            # Split into individual statements and run each separately
+            # Athena only allows one statement per execution
+            statements = [
+                s.strip() for s in sql.split(';')
+                if s.strip() and not s.strip().startswith('--')
+            ]
+
+            for stmt in statements:
+                run_athena_query(stmt + ';')
+
             logger.info(
                 f"✅ Silver CTAS complete: "
                 f"{city['display_name']} / {run_date}"
             )
-
-        logger.info(
-            f"✅ Bronze → Silver complete for all cities "
-            f"on {run_date}"
-        )
 
         return run_metadata
 
@@ -393,36 +388,27 @@ def weather_incremental_pipeline():
     # TASK 5: Silver → Gold MERGE
     # ──────────────────────────────────────────────────────────
     @task(
-        task_id="run_silver_to_gold_merge",
-        execution_timeout=timedelta(minutes=30),
+    task_id="run_silver_to_gold_merge",
+    execution_timeout=timedelta(minutes=30),
     )
     def run_silver_to_gold_merge(run_metadata: dict) -> dict:
-        """
-        Run Silver to Gold MERGE INTO for run_date.
-
-        Aggregates 144 Silver rows (6 cities × 24 hours)
-        into 6 Gold daily summary rows — one per city.
-
-        ACID upsert via Iceberg:
-        - If city+date already in Gold → UPDATE
-        - If new city+date → INSERT
-
-        Also detects extreme weather events and
-        upserts into gold_extreme_weather_events.
-
-        1 MERGE query covers all 6 cities in one shot.
-        """
-        sql_template    = read_sql_file(
+        sql_template = read_sql_file(
             "transformations/silver_to_gold_merge.sql"
         )
-        run_date        = run_metadata["run_date"]
+        run_date = run_metadata["run_date"]
 
         sql = sql_template.replace("{{ run_date }}", run_date)
 
-        run_athena_query(sql)
-        logger.info(
-            f"✅ Silver → Gold MERGE complete for {run_date}"
-        )
+        # Split into individual statements
+        # silver_to_gold_merge.sql has two MERGE INTO statements
+        statements = [
+            s.strip() for s in sql.split(';')
+            if s.strip() and not s.strip().startswith('--')
+        ]
+
+        for i, stmt in enumerate(statements):
+            run_athena_query(stmt + ';')
+            logger.info(f"✅ Gold MERGE {i+1} complete for {run_date}")
 
         return run_metadata
 

@@ -380,7 +380,13 @@ def weather_backfill_pipeline():
                     .replace("{{ day }}",        current_date.strftime("%d"))
                 )
 
-                run_athena_query(sql)
+                statements = [
+                    s.strip() for s in sql.split(';')
+                    if s.strip() and not s.strip().startswith('--')
+                ]
+                for stmt in statements:
+                    run_athena_query(stmt + ';')
+
                 total_queries += 1
 
                 if total_queries % 30 == 0:
@@ -434,7 +440,13 @@ def weather_backfill_pipeline():
                 "{{ run_date }}", str(current_date)
             )
 
-            run_athena_query(sql)
+            statements = [
+                s.strip() for s in sql.split(';')
+                if s.strip() and not s.strip().startswith('--')
+            ]
+            for stmt in statements:
+                run_athena_query(stmt + ';')
+            
             total_queries += 1
 
             if total_queries % 10 == 0:
